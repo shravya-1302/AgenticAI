@@ -1,0 +1,47 @@
+{
+  "name": "Alex Rao",
+  "contact": "alex.rao@email.com | linkedin.com/in/alexrao | github.com/alexrao",
+  "summary_raw": "Backend engineer with 3 years experience building APIs and internal tools.",
+  "evidence": [
+    {
+      "id": "ev1",
+      "type": "job",
+      "title": "Backend Engineer, Loopline Systems (2022-2025)",
+      "text": "Built and maintained REST APIs in Python (FastAPI) serving internal analytics dashboards.",
+      "skills": ["python", "fastapi", "rest api", "backend"],
+      "metrics_supported": []
+    },
+    {
+      "id": "ev2",
+      "type": "job",
+      "title": "Backend Engineer, Loopline Systems (2022-2025)",
+      "text": "Migrated a monolithic Django service to a set of containerized microservices, reducing average deploy time from 40 minutes to 12 minutes.",
+      "skills": ["python", "django", "docker", "microservices", "ci/cd"],
+      "metrics_supported": ["reduced deploy time from 40 to 12 minutes"]
+    },
+    {
+      "id": "ev3",
+      "type": "project",
+      "title": "Personal project: k8s-lab",
+      "text": "Deployed a 3-node Kubernetes cluster on bare-metal hardware to experiment with self-hosted CI pipelines, configured with Helm charts and basic autoscaling.",
+      "skills": ["kubernetes", "helm", "devops", "ci/cd"],
+      "metrics_supported": []
+    },
+    {
+      "id": "ev4",
+      "type": "job",
+      "title": "Backend Engineer, Loopline Systems (2022-2025)",
+      "text": "Wrote integration tests raising backend test coverage from 45% to 78% over six months.",
+      "skills": ["testing", "python", "pytest"],
+      "metrics_supported": ["raised test coverage from 45% to 78%"]
+    },
+    {
+      "id": "ev5",
+      "type": "education",
+      "title": "B.Tech Computer Science, IIT Bhubaneswar (2018-2022)",
+      "text": "Coursework in distributed systems, databases, and algorithms.",
+      "skills": ["distributed systems", "databases", "algorithms"],
+      "metrics_supported": []
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+Backend Engineer - Platform Team
+
+We are looking for a Backend Engineer to join our platform team.
+
+Requirements:
+- Strong experience with Python and REST API development
+- Experience with Docker and containerized microservices
+- Hands-on experience with Kubernetes in production or lab environments
+- Familiarity with CI/CD pipelines
+- Experience writing automated tests and improving test coverage
+- Bonus: experience with distributed systems concepts

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Autonomous Resume Agent</title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; max-width: 900px; margin: 40px auto; color: #222; padding: 0 16px; }
+  h1 { font-size: 22px; }
+  h3 { margin-bottom: 6px; }
+  textarea { width: 100%; min-height: 140px; font-family: inherit; font-size: 13px; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; }
+  label { font-weight: 600; font-size: 14px; display: block; margin-top: 16px; }
+  .hint { color: #777; font-size: 12px; margin-top: 2px; }
+  button { background: #2563eb; color: white; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; margin-right: 8px; margin-top: 10px; font-size: 14px; }
+  button:disabled { background: #ccc; cursor: not-allowed; }
+  .card { border: 1px solid #e2e2e2; border-radius: 8px; padding: 16px; margin-top: 16px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .status-in_progress { background: #fef3c7; color: #92400e; }
+  .status-ready { background: #d1fae5; color: #065f46; }
+  .status-escalated { background: #fee2e2; color: #991b1b; }
+  .flag { color: #b91c1c; font-size: 13px; }
+  .change { color: #1d4ed8; font-size: 13px; }
+  .error { color: #b91c1c; font-size: 13px; margin-top: 8px; }
+  .log { font-family: monospace; font-size: 12px; color: #555; white-space: pre-wrap; }
+  .bullet { margin: 4px 0; font-size: 14px; }
+  a.pdf-link { display: inline-block; margin-top: 10px; }
+  .col2 { display: flex; gap: 20px; flex-wrap: wrap; }
+  .col2 > div { flex: 1; min-width: 280px; }
+</style>
+</head>
+<body>
+  <h1>🤖 Autonomous Resume &amp; Application Agent</h1>
+  <p>Paste your real resume and a real job description below. The agent only uses evidence from what you paste/upload — it never invents skills or experience.</p>
+
+  <div id="inputCard" class="card">
+    <div class="col2">
+      <div>
+        <label>Your resume</label>
+        <div class="hint">Paste your resume text, or upload a .pdf / .docx / .txt file below.</div>
+        <textarea id="resumeText" placeholder="Paste your resume text here..."></textarea>
+        <input type="file" id="resumeFile" accept=".pdf,.docx,.txt" />
+      </div>
+      <div>
+        <label>Job description</label>
+        <div class="hint">Paste the JD text, or upload a .pdf / .docx / .txt file below.</div>
+        <textarea id="jdText" placeholder="Paste the job description here..."></textarea>
+        <input type="file" id="jdFile" accept=".pdf,.docx,.txt" />
+      </div>
+    </div>
+    <button id="startBtn" onclick="startSession()">Start session</button>
+    <div id="startError" class="error" style="display:none"></div>
+  </div>
+
+  <button id="stepBtn" onclick="stepSession()" disabled style="margin-top:16px">Run next iteration ▶</button>
+  <button id="autoBtn" onclick="runToCompletion()" disabled>Run to completion ⏩</button>
+
+  <div id="statusCard" class="card" style="display:none">
+    <strong>Session:</strong> <span id="sessionId"></span>
+    &nbsp;|&nbsp; <strong>Status:</strong> <span id="statusBadge" class="badge"></span>
+  </div>
+
+  <div id="coverageCard" class="card" style="display:none">
+    <h3>Requirement coverage (from your JD, matched against your resume)</h3>
+    <div id="coverageList"></div>
+  </div>
+
+  <div id="draftCard" class="card" style="display:none">
+    <h3>Latest draft (v<span id="draftVersion"></span>)</h3>
+    <div id="bulletList"></div>
+    <a id="pdfLink" class="pdf-link" href="#" target="_blank" style="display:none">📄 Download tailored resume PDF</a>
+  </div>
+
+  <div id="evalCard" class="card" style="display:none">
+    <h3>Evaluation</h3>
+    <div id="evalContent"></div>
+  </div>
+
+  <div id="changeCard" class="card" style="display:none">
+    <h3>Change / replanning log</h3>
+    <div id="changeList"></div>
+  </div>
+
+  <div id="logCard" class="card">
+    <h3>Agent event log</h3>
+    <div id="logContent" class="log"></div>
+  </div>
+
+<script>
+const API = window.location.origin;
+let sessionId = null;
+
+async function startSession() {
+  const errEl = document.getElementById("startError");
+  errEl.style.display = "none";
+  const form = new FormData();
+  form.append("resume_text", document.getElementById("resumeText").value);
+  form.append("jd_text", document.getElementById("jdText").value);
+  const resumeFile = document.getElementById("resumeFile").files[0];
+  const jdFile = document.getElementById("jdFile").files[0];
+  if (resumeFile) form.append("resume_file", resumeFile);
+  if (jdFile) form.append("jd_file", jdFile);
+
+  document.getElementById("startBtn").disabled = true;
+  try {
+    const res = await fetch(`${API}/session/start`, { method: "POST", body: form });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.detail || `Request failed (${res.status})`);
+    }
+    const data = await res.json();
+    sessionId = data.session_id;
+    document.getElementById("stepBtn").disabled = false;
+    document.getElementById("autoBtn").disabled = false;
+    await refresh();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = "block";
+  } finally {
+    document.getElementById("startBtn").disabled = false;
+  }
+}
+
+async function stepSession() {
+  await fetch(`${API}/session/${sessionId}/step`, {method: "POST"});
+  await refresh();
+}
+
+async function runToCompletion() {
+  // Runs the agent server-side all the way to completion (SELECT phase
+  // through FIT phase) in one call, instead of looping /step a fixed
+  // number of times from the client -- a capped client-side loop can stop
+  // before page-fit trimming has actually converged to one page.
+  await fetch(`${API}/session/${sessionId}/run`, { method: "POST" });
+  await refresh();
+}
+
+async function refresh() {
+  const res = await fetch(`${API}/session/${sessionId}/state`);
+  const state = await res.json();
+  render(state);
+}
+
+function render(state) {
+  document.getElementById("statusCard").style.display = "block";
+  document.getElementById("sessionId").textContent = state.session_id;
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = state.status;
+  badge.className = "badge status-" + state.status;
+
+  const covDiv = document.getElementById("coverageList");
+  document.getElementById("coverageCard").style.display = "block";
+  covDiv.innerHTML = Object.entries(state.requirement_coverage).map(([req, info]) =>
+    `<div>${info.status === "matched" ? "✅" : "❌"} <strong>${req}</strong> ${info.evidence_ids.length ? "→ " + info.evidence_ids.join(", ") : ""}</div>`
+  ).join("") || "<div>No known skill terms detected in this JD.</div>";
+
+  if (state.draft_history.length) {
+    const latest = state.draft_history[state.draft_history.length - 1];
+    document.getElementById("draftCard").style.display = "block";
+    document.getElementById("draftVersion").textContent = latest.version;
+    document.getElementById("bulletList").innerHTML = latest.bullets.map(b =>
+      `<div class="bullet">• ${b.text} <em style="color:#888">[${b.source_id}]</em></div>`
+    ).join("") || "<div>No matching evidence selected yet.</div>";
+    const pdfLink = document.getElementById("pdfLink");
+    pdfLink.href = `${API}/session/${sessionId}/resume.pdf`;
+    pdfLink.style.display = "inline-block";
+  }
+
+  if (state.eval_history.length) {
+    const latestEval = state.eval_history[state.eval_history.length - 1];
+    document.getElementById("evalCard").style.display = "block";
+    let html = `<div>ATS coverage score: <strong>${latestEval.ats_score}</strong> (threshold 0.9)</div>`;
+    html += `<div>Quantified-impact ratio: <strong>${latestEval.quantified_impact_ratio ?? "n/a"}</strong> (share of included bullets with a real number/metric)</div>`;
+    if (latestEval.factual_flags.length) {
+      html += latestEval.factual_flags.map(f => `<div class="flag">⚠ ${f}</div>`).join("");
+    } else {
+      html += `<div style="color:#065f46">✅ No factual-consistency flags</div>`;
+    }
+    document.getElementById("evalContent").innerHTML = html;
+  }
+
+  if (state.change_log.length) {
+    document.getElementById("changeCard").style.display = "block";
+    document.getElementById("changeList").innerHTML = state.change_log.map(c =>
+      `<div class="change">🔁 ${c}</div>`
+    ).join("");
+  }
+
+  document.getElementById("logContent").textContent = state.log.map(l => `[${l.t}] ${l.msg}`).join("\n");
+
+  if (state.status !== "in_progress") {
+    document.getElementById("stepBtn").disabled = true;
+    document.getElementById("autoBtn").disabled = true;
+  }
+}
+</script>
+</body>
+</html>
